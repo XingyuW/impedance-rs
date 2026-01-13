@@ -1,0 +1,15 @@
+[package]
+name = "impedance-rs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "impedance_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.27.2", features = ["extension-module"] }
+num-complex = "0.4"
+nalgebra = "0.34.1"
+nom = "8.0.0"
+levenberg-marquardt = "0.15.0"
