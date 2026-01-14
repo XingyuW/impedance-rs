@@ -43,9 +43,6 @@ jobs:
       - name: Sync environment
         run: uv sync
 
-      - name: Install project (editable)
-        run: uv run python -m pip install -e .
-
       - name: Ruff
         run: uv run ruff check .
 
@@ -53,4 +50,4 @@ jobs:
         run: uv run maturin develop --release
 
       - name: Pytest
-        run: uv run pytest -q
+        run: PYTHONPATH=. uv run pytest -q
