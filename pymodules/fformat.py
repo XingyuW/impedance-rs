@@ -11,6 +11,14 @@ from matplotlib.colors import Normalize
 from matplotlib.collections import LineCollection
 from matplotlib.colors import LinearSegmentedColormap
 
+_initialized_ = False
+
+def ensure_initialized() -> None:
+    global _initialized_
+    if not _initialized_:
+        __setupFigure__()
+        _initialized_ = True
+
 
 def __setupFigure__():
     font_size = 25
@@ -40,9 +48,6 @@ def __setupFigure__():
         # 'text.usetex': True
     }
     plt.rcParams.update(params)
-
-
-__setupFigure__()
 
 
 # change lightness of color
