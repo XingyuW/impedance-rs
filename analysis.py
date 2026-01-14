@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
+from pymodules.fformat import *
+
 try:
     import impedance_rs  # This will be the compiled Rust module
 except ImportError:
