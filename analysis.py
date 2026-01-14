@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import sys
 
 import pymodules.fformat as fformat
+fformat.ensure_initialized()
 
 try:
     import impedance_rs  # This will be the compiled Rust module
