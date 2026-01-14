@@ -53,7 +53,7 @@ pub enum ElementType {
     /// Represents a non-ideal capacitor or distributed time constant.
     /// Impedance: Z = 1 / (Q * (j * omega)^alpha)
     /// Parameters: [Q, alpha] (Ohm^-1 * sec^alpha, dimensionless 0 < alpha <= 1)
-    CPE,
+    Cpe,
 
     /// Warburg Open (Wo) - Finite-space
     ///
@@ -116,7 +116,7 @@ pub enum ElementType {
     /// Simplified transmission line model for porous electrodes.
     /// Impedance: Z = sqrt(Rion * Zs) * coth(sqrt(Rion / Zs)), where Zs = 1 / (Qs * (j * omega)^gamma)
     /// Parameters: [Rion, Qs, gamma] (Ohms, Ohm^-1 * sec^gamma, dimensionless)
-    TLMQ,
+    Tlmq,
 
     /// Porous Electrode Model (T)
     ///
@@ -134,7 +134,7 @@ impl ElementType {
             ElementType::C => 1,
             ElementType::L => 1,
             ElementType::W => 1,
-            ElementType::CPE => 2,
+            ElementType::Cpe => 2,
             ElementType::Wo => 2,
             ElementType::Ws => 2,
             ElementType::La => 2,
@@ -143,7 +143,7 @@ impl ElementType {
             ElementType::Gs => 3,
             ElementType::K => 2,
             ElementType::Zarc => 3,
-            ElementType::TLMQ => 3,
+            ElementType::Tlmq => 3,
             ElementType::T => 4,
         }
     }
@@ -155,7 +155,7 @@ impl ElementType {
             ElementType::C => vec![Constraint::Positive],
             ElementType::L => vec![Constraint::Positive],
             ElementType::W => vec![Constraint::Positive],
-            ElementType::CPE => vec![Constraint::Positive, Constraint::ZeroOne],
+            ElementType::Cpe => vec![Constraint::Positive, Constraint::ZeroOne],
             ElementType::Wo => vec![Constraint::Positive, Constraint::Positive],
             ElementType::Ws => vec![Constraint::Positive, Constraint::Positive],
             ElementType::La => vec![Constraint::Positive, Constraint::Positive], // alpha usually > 0
@@ -172,7 +172,7 @@ impl ElementType {
                 Constraint::Positive,
                 Constraint::ZeroOne,
             ],
-            ElementType::TLMQ => vec![
+            ElementType::Tlmq => vec![
                 Constraint::Positive,
                 Constraint::Positive,
                 Constraint::ZeroOne,
@@ -193,7 +193,7 @@ impl ElementType {
             ElementType::C => vec!["C"],
             ElementType::L => vec!["L"],
             ElementType::W => vec!["sigma"],
-            ElementType::CPE => vec!["Q", "alpha"],
+            ElementType::Cpe => vec!["Q", "alpha"],
             ElementType::Wo => vec!["Z0", "tau"],
             ElementType::Ws => vec!["Z0", "tau"],
             ElementType::La => vec!["L", "alpha"],
@@ -202,7 +202,7 @@ impl ElementType {
             ElementType::Gs => vec!["R_G", "t_G", "phi"],
             ElementType::K => vec!["R", "tau_k"],
             ElementType::Zarc => vec!["R", "tau_k", "gamma"],
-            ElementType::TLMQ => vec!["Rion", "Qs", "gamma"],
+            ElementType::Tlmq => vec!["Rion", "Qs", "gamma"],
             ElementType::T => vec!["A", "B", "a", "b"],
         }
     }
@@ -214,7 +214,7 @@ impl ElementType {
             ElementType::C => vec!["F"],
             ElementType::L => vec!["H"],
             ElementType::W => vec!["Ohm s^-1/2"],
-            ElementType::CPE => vec!["Ohm^-1 s^alpha", ""],
+            ElementType::Cpe => vec!["Ohm^-1 s^alpha", ""],
             ElementType::Wo => vec!["Ohm", "s"],
             ElementType::Ws => vec!["Ohm", "s"],
             ElementType::La => vec!["H s^(alpha-1)", ""],
@@ -223,7 +223,7 @@ impl ElementType {
             ElementType::Gs => vec!["Ohm", "s", ""],
             ElementType::K => vec!["Ohm", "s"],
             ElementType::Zarc => vec!["Ohm", "s", ""],
-            ElementType::TLMQ => vec!["Ohm", "Ohm^-1 s^gamma", ""],
+            ElementType::Tlmq => vec!["Ohm", "Ohm^-1 s^gamma", ""],
             ElementType::T => vec!["Ohm", "Ohm", "", "s"],
         }
     }
@@ -257,7 +257,7 @@ impl ElementType {
                     Complex64::new(1e6, -1e6) // Limit at DC
                 }
             }
-            ElementType::CPE => {
+            ElementType::Cpe => {
                 // Z = 1 / (Q * (j*omega)^alpha)
                 let q = p[0];
                 let alpha = p[1];
@@ -358,7 +358,7 @@ impl ElementType {
                 let denom = Complex64::new(1.0, 0.0) + term;
                 Complex64::new(r, 0.0) / denom
             }
-            ElementType::TLMQ => {
+            ElementType::Tlmq => {
                 // Z = sqrt(Rion * Zs) * coth(sqrt(Rion / Zs))
                 // Zs = 1 / (Qs * (j*w)^gamma)
                 let r_ion = p[0];

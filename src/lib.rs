@@ -12,6 +12,19 @@ use fitting::{
     guess_parameters, lin_kk_solver, transform_backward, transform_forward, ImpedanceFitter,
 };
 
+// Type aliases to reduce complexity
+type FitCircuitResult = (
+    Vec<f64>,
+    Vec<String>,
+    Vec<String>,
+    Vec<f64>,
+    Vec<f64>,
+    Vec<f64>,
+    Vec<f64>,
+);
+
+type LinKkResult = (usize, f64, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>);
+
 #[pyfunction]
 fn fit_circuit(
     circuit_str: String,
@@ -19,18 +32,10 @@ fn fit_circuit(
     z_real: Vec<f64>,
     z_imag: Vec<f64>,
     phase_deg: Vec<f64>,
-) -> PyResult<(
-    Vec<f64>,
-    Vec<String>,
-    Vec<String>,
-    Vec<f64>,
-    Vec<f64>,
-    Vec<f64>,
-    Vec<f64>,
-)> {
+) -> PyResult<FitCircuitResult> {
     // 1. Parse
     let circuit = parse_circuit_string(&circuit_str)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
+        .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
 
     // 2. Guess
     let initial_params_physical =
@@ -149,7 +154,7 @@ fn lin_kk(
     z_imag: Vec<f64>,
     c: f64,
     max_m: usize,
-) -> PyResult<(usize, f64, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>)> {
+) -> PyResult<LinKkResult> {
     let result = lin_kk_solver(&frequencies, &z_real, &z_imag, c, max_m);
     Ok(result)
 }

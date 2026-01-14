@@ -155,7 +155,7 @@ impl Impedance for CircuitNode {
 
 fn parse_element_type(input: &str) -> IResult<&str, ElementType> {
     alt((
-        map(tag("CPE"), |_| ElementType::CPE),
+        map(tag("CPE"), |_| ElementType::Cpe),
         map(tag("Wo"), |_| ElementType::Wo),
         map(tag("Ws"), |_| ElementType::Ws),
         map(tag("La"), |_| ElementType::La),
@@ -164,7 +164,7 @@ fn parse_element_type(input: &str) -> IResult<&str, ElementType> {
         map(tag("G"), |_| ElementType::G),
         map(tag("K"), |_| ElementType::K),
         map(tag("Zarc"), |_| ElementType::Zarc),
-        map(tag("TLMQ"), |_| ElementType::TLMQ),
+        map(tag("TLMQ"), |_| ElementType::Tlmq),
         map(tag("T"), |_| ElementType::T),
         map(tag("R"), |_| ElementType::R),
         map(tag("C"), |_| ElementType::C),

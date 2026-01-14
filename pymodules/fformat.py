@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib.markers import MarkerStyle
-from matplotlib.colors import to_rgb, to_rgba
+from matplotlib.colors import to_rgb
 from numpy import linspace
 import numpy as np
 from PIL import Image
@@ -49,7 +49,7 @@ __setupFigure__()
 def color_light(color, lightness):
     # range of color lightness: 0-1, the lower the darker
     rgb_val = to_rgb(color)
-    h, l, s = colorsys.rgb_to_hls(*rgb_val)
+    h, _, s = colorsys.rgb_to_hls(*rgb_val)
     return colorsys.hls_to_rgb(h, lightness, s)
 
 
@@ -90,9 +90,11 @@ def color_map(n, cm):
     cm: color map
     """
     if cm=="plasma":
-        colors = plt.cm.plasma(linspace(0, 1, n))
+        colors = plt.cm.get_cmap("plasma")(linspace(0, 1, n))
     if cm=="spectral":
-        colors = plt.cm.Spectral(linspace(0, 1, n))
+        colors = plt.cm.get_cmap("Spectral")(linspace(0, 1, n))
+    else:
+        colors = plt.cm.get_cmap("viridis")(linspace(0, 1, n))
         
     return colors
 
@@ -111,8 +113,10 @@ def array_color_map(x,y, cmap="plasma", darken=1):
     # Create line segments
     points = np.array([x, y]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    # Convert ndarray to python list
+    segments_list = [seg for seg in segments]
     # Create a LineCollection
-    lc = LineCollection(segments, cmap=color_map, norm=norm)
+    lc = LineCollection(segments_list, cmap=color_map, norm=norm)
     lc.set_array(y)  # Map y values to the colormap
     return lc
 

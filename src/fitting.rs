@@ -160,7 +160,7 @@ fn fill_guesses(node: &CircuitNode, params: &mut [f64], state: &mut GuessState) 
                 ElementType::W => {
                     params[*idx] = state.sigma_gw;
                 }
-                ElementType::CPE => {
+                ElementType::Cpe => {
                     params[*idx] = state.q_cpe;
                     params[*idx + 1] = 0.9; // Alpha usually close to 1 for CPE
                 }
@@ -183,10 +183,10 @@ fn fill_guesses(node: &CircuitNode, params: &mut [f64], state: &mut GuessState) 
                         params[*idx + 2] = 0.5;
                     }
                 }
-                ElementType::K | ElementType::Zarc | ElementType::TLMQ => {
+                ElementType::K | ElementType::Zarc | ElementType::Tlmq => {
                     params[*idx] = state.r_ct;
                     params[*idx + 1] = 1.0;
-                    if let ElementType::TLMQ = etype {
+                    if let ElementType::Tlmq = etype {
                         params[*idx + 1] = state.q_cpe;
                     }
                     if etype.param_count() > 2 {
