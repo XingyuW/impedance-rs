@@ -1,9 +1,9 @@
-use nalgebra::{DMatrix, DVector, Dyn, Owned};
-use levenberg_marquardt::LeastSquaresProblem;
-use std::f64::consts::PI;
-use num_complex::Complex64;
 use crate::circuits::{CircuitNode, Impedance};
-use crate::elements::{ElementType, Constraint};
+use crate::elements::{Constraint, ElementType};
+use levenberg_marquardt::LeastSquaresProblem;
+use nalgebra::{DMatrix, DVector, Dyn, Owned};
+use num_complex::Complex64;
+use std::f64::consts::PI;
 
 struct GuessState {
     rs: f64,
@@ -24,12 +24,16 @@ pub fn guess_parameters(
 ) -> Vec<f64> {
     let total_params = node.count_total_params();
     let mut params = vec![0.0; total_params];
-    
+
     // 1. Identify HF and LF indices
-    let (idx_hf, _) = frequencies.iter().enumerate()
+    let (idx_hf, _) = frequencies
+        .iter()
+        .enumerate()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
         .unwrap();
-    let (idx_lf, _) = frequencies.iter().enumerate()
+    let (idx_lf, _) = frequencies
+        .iter()
+        .enumerate()
         .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
         .unwrap();
 
@@ -40,16 +44,16 @@ pub fn guess_parameters(
     let n = z_imag.len();
     let mut im_smooth = z_imag.to_vec();
     if n >= 3 {
-        for i in 1..n-1 {
-            im_smooth[i] = (z_imag[i-1] + z_imag[i] + z_imag[i+1]) / 3.0;
+        for i in 1..n - 1 {
+            im_smooth[i] = (z_imag[i - 1] + z_imag[i] + z_imag[i + 1]) / 3.0;
         }
     }
 
     // 4. Find Dip (Local Maxima in Im(Z) - closest to zero)
     // We look for peaks in the smoothed imaginary data
     let mut peaks = Vec::new();
-    for i in 1..n-1 {
-        if im_smooth[i] > im_smooth[i-1] && im_smooth[i] > im_smooth[i+1] {
+    for i in 1..n - 1 {
+        if im_smooth[i] > im_smooth[i - 1] && im_smooth[i] > im_smooth[i + 1] {
             peaks.push(i);
         }
     }
@@ -59,14 +63,17 @@ pub fn guess_parameters(
 
     if !peaks.is_empty() {
         // Find the highest peak value (closest to 0)
-        let idx_in_peaks = peaks.iter()
+        let idx_in_peaks = peaks
+            .iter()
             .max_by(|&&a, &&b| im_smooth[a].partial_cmp(&im_smooth[b]).unwrap())
             .unwrap();
         idx_dip = *idx_in_peaks;
         rct_guess = (z_real[idx_dip] - rs_guess).abs();
     } else {
         // No dip, use arc top (minimum of imaginary part, i.e., most negative)
-        let (idx_peak, _) = z_imag.iter().enumerate()
+        let (idx_peak, _) = z_imag
+            .iter()
+            .enumerate()
             .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
             .unwrap();
         let z_peak_real = z_real[idx_peak];
@@ -84,10 +91,12 @@ pub fn guess_parameters(
     let range_end = if start == end { n } else { end + 1 }; // Exclusive
 
     let slice_im = &z_imag[range_start..range_end];
-    let (idx_local, _) = slice_im.iter().enumerate()
+    let (idx_local, _) = slice_im
+        .iter()
+        .enumerate()
         .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
         .unwrap_or((0, &0.0));
-    
+
     let idx_top = range_start + idx_local;
     let w_peak = 2.0 * PI * frequencies[idx_top];
     let q_guess = 1.0 / (w_peak * final_rct_guess);
@@ -97,10 +106,14 @@ pub fn guess_parameters(
     let z_lf = Complex64::new(z_real[idx_lf], z_imag[idx_lf]);
     let phase_lf_rad = z_lf.im.atan2(z_lf.re);
     let phase_lf_deg = phase_lf_rad.to_degrees();
-    
+
     let mut alpha_guess = phase_lf_deg.abs() / 90.0;
-    if alpha_guess > 0.6 { alpha_guess = 0.5; }
-    if alpha_guess < 0.2 { alpha_guess = 0.25; }
+    if alpha_guess > 0.6 {
+        alpha_guess = 0.5;
+    }
+    if alpha_guess < 0.2 {
+        alpha_guess = 0.25;
+    }
 
     let w_low = 2.0 * PI * frequencies[idx_lf];
     let z_mag_low = z_lf.norm();
@@ -117,15 +130,11 @@ pub fn guess_parameters(
     };
 
     fill_guesses(node, &mut params, &mut state);
-    
+
     params
 }
 
-fn fill_guesses(
-    node: &CircuitNode,
-    params: &mut [f64],
-    state: &mut GuessState,
-) {
+fn fill_guesses(node: &CircuitNode, params: &mut [f64], state: &mut GuessState) {
     match node {
         CircuitNode::Series(nodes) | CircuitNode::Parallel(nodes) => {
             for n in nodes {
@@ -143,7 +152,7 @@ fn fill_guesses(
                     state.r_count += 1;
                 }
                 ElementType::C => {
-                    params[*idx] = 1e-6; 
+                    params[*idx] = 1e-6;
                 }
                 ElementType::L => {
                     params[*idx] = 1e-6;
@@ -152,31 +161,31 @@ fn fill_guesses(
                     params[*idx] = state.sigma_gw;
                 }
                 ElementType::CPE => {
-                    params[*idx] = state.q_cpe; 
+                    params[*idx] = state.q_cpe;
                     params[*idx + 1] = 0.9; // Alpha usually close to 1 for CPE
                 }
                 ElementType::Wo | ElementType::Ws => {
-                    params[*idx] = state.r_ct; 
-                    params[*idx + 1] = 1.0; 
+                    params[*idx] = state.r_ct;
+                    params[*idx + 1] = 1.0;
                 }
                 ElementType::La => {
-                    params[*idx] = 1e-6; 
-                    params[*idx + 1] = 1.0; 
+                    params[*idx] = 1e-6;
+                    params[*idx + 1] = 1.0;
                 }
                 ElementType::Gw => {
                     params[*idx] = state.sigma_gw;
                     params[*idx + 1] = state.alpha_gw;
                 }
                 ElementType::G | ElementType::Gs => {
-                    params[*idx] = state.r_ct; 
-                    params[*idx + 1] = 1.0; 
+                    params[*idx] = state.r_ct;
+                    params[*idx + 1] = 1.0;
                     if let ElementType::Gs = etype {
                         params[*idx + 2] = 0.5;
                     }
                 }
                 ElementType::K | ElementType::Zarc | ElementType::TLMQ => {
-                    params[*idx] = state.r_ct; 
-                    params[*idx + 1] = 1.0; 
+                    params[*idx] = state.r_ct;
+                    params[*idx + 1] = 1.0;
                     if let ElementType::TLMQ = etype {
                         params[*idx + 1] = state.q_cpe;
                     }
@@ -185,10 +194,10 @@ fn fill_guesses(
                     }
                 }
                 ElementType::T => {
-                    params[*idx] = state.r_ct; 
-                    params[*idx + 1] = state.r_ct; 
-                    params[*idx + 2] = 1.0; 
-                    params[*idx + 3] = 1.0; 
+                    params[*idx] = state.r_ct;
+                    params[*idx + 1] = state.r_ct;
+                    params[*idx + 2] = 1.0;
+                    params[*idx + 3] = 1.0;
                 }
             }
         }
@@ -209,11 +218,21 @@ pub struct ImpedanceFitter {
 pub fn transform_forward(physical: f64, constraint: Constraint) -> f64 {
     match constraint {
         Constraint::Positive => {
-            if physical <= 0.0 { -23.0 } else { physical.ln() } // Handle non-positive input gracefully
-        },
+            if physical <= 0.0 {
+                -23.0
+            } else {
+                physical.ln()
+            } // Handle non-positive input gracefully
+        }
         Constraint::ZeroOne => {
-            if physical <= 0.0 { -23.0 } else if physical >= 1.0 { 23.0 } else { (physical / (1.0 - physical)).ln() }
-        },
+            if physical <= 0.0 {
+                -23.0
+            } else if physical >= 1.0 {
+                23.0
+            } else {
+                (physical / (1.0 - physical)).ln()
+            }
+        }
         Constraint::None => physical,
     }
 }
@@ -242,16 +261,19 @@ impl LeastSquaresProblem<f64, Dyn, Dyn> for ImpedanceFitter {
     fn residuals(&self) -> Option<DVector<f64>> {
         let n_points = self.frequencies.len();
         let mut residuals = DVector::zeros(2 * n_points);
-        
+
         // Transform internal params to physical params
-        let physical_params: Vec<f64> = self.params.iter().zip(self.constraints.iter())
+        let physical_params: Vec<f64> = self
+            .params
+            .iter()
+            .zip(self.constraints.iter())
             .map(|(&p, &c)| transform_backward(p, c))
             .collect();
 
         for i in 0..n_points {
             let omega = 2.0 * PI * self.frequencies[i];
             let z_model = self.circuit.calculate(omega, &physical_params);
-            
+
             residuals[i] = z_model.re - self.z_real_data[i];
             residuals[i + n_points] = z_model.im - self.z_imag_data[i];
         }
@@ -265,10 +287,13 @@ impl LeastSquaresProblem<f64, Dyn, Dyn> for ImpedanceFitter {
         let epsilon = 1e-8;
 
         // Current physical parameters
-        let physical_params: Vec<f64> = self.params.iter().zip(self.constraints.iter())
+        let physical_params: Vec<f64> = self
+            .params
+            .iter()
+            .zip(self.constraints.iter())
             .map(|(&p, &c)| transform_backward(p, c))
             .collect();
-        
+
         let mut base_residuals = DVector::zeros(2 * n_points);
         for i in 0..n_points {
             let omega = 2.0 * PI * self.frequencies[i];
@@ -282,17 +307,18 @@ impl LeastSquaresProblem<f64, Dyn, Dyn> for ImpedanceFitter {
         for j in 0..n_params {
             let original_val = p_curr_internal[j];
             p_curr_internal[j] += epsilon;
-            
+
             // Calculate perturbed physical params
-            let perturbed_physical_val = transform_backward(p_curr_internal[j], self.constraints[j]);
-            
+            let perturbed_physical_val =
+                transform_backward(p_curr_internal[j], self.constraints[j]);
+
             let mut p_perturbed_physical = physical_params.clone();
             p_perturbed_physical[j] = perturbed_physical_val;
 
             for i in 0..n_points {
                 let omega = 2.0 * PI * self.frequencies[i];
                 let z = self.circuit.calculate(omega, &p_perturbed_physical);
-                
+
                 let res_re = z.re - self.z_real_data[i];
                 let res_im = z.im - self.z_imag_data[i];
 
@@ -300,7 +326,7 @@ impl LeastSquaresProblem<f64, Dyn, Dyn> for ImpedanceFitter {
                 jacobian[(i + n_points, j)] = (res_im - base_residuals[i + n_points]) / epsilon;
             }
 
-            p_curr_internal[j] = original_val; 
+            p_curr_internal[j] = original_val;
         }
 
         Some(jacobian)
@@ -316,7 +342,7 @@ pub fn lin_kk_solver(
     max_m: usize,
 ) -> (usize, f64, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>) {
     let n = frequencies.len();
-    
+
     let mut best_m = 0;
     let mut best_mu = 1.0;
     let mut best_z_fit_re = vec![0.0; n];
@@ -329,11 +355,12 @@ pub fn lin_kk_solver(
         let max_f = frequencies.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
         let tau_min = 1.0 / (2.0 * PI * max_f);
         let tau_max = 1.0 / (2.0 * PI * min_f);
-        
+
         let mut taus = Vec::with_capacity(m);
         if m > 1 {
             for k in 0..m {
-                let log_tau = tau_min.ln() + (k as f64 / (m as f64 - 1.0)) * (tau_max / tau_min).ln();
+                let log_tau =
+                    tau_min.ln() + (k as f64 / (m as f64 - 1.0)) * (tau_max / tau_min).ln();
                 taus.push(log_tau.exp());
             }
         } else {
@@ -346,25 +373,27 @@ pub fn lin_kk_solver(
 
         for i in 0..n {
             let w = 2.0 * PI * frequencies[i];
-            
-            a_mat[(i, 0)] = 1.0; 
-            a_mat[(i + n, 0)] = 0.0; 
-            
+
+            a_mat[(i, 0)] = 1.0;
+            a_mat[(i + n, 0)] = 0.0;
+
             b_vec[i] = z_real[i];
             b_vec[i + n] = z_imag[i];
 
             for k in 0..m {
                 let tau = taus[k];
                 let denom = 1.0 + (w * tau).powi(2);
-                
+
                 a_mat[(i, k + 1)] = 1.0 / denom;
                 a_mat[(i + n, k + 1)] = -(w * tau) / denom;
             }
         }
 
         let svd = a_mat.clone().svd(true, true);
-        let x = svd.solve(&b_vec, 1e-9).unwrap_or_else(|_| DVector::zeros(n_params));
-        
+        let x = svd
+            .solve(&b_vec, 1e-9)
+            .unwrap_or_else(|_| DVector::zeros(n_params));
+
         let r_k = x.rows(1, m);
         let mut sum_pos = 0.0;
         let mut sum_neg = 0.0;
@@ -375,13 +404,13 @@ pub fn lin_kk_solver(
                 sum_neg += val.abs();
             }
         }
-        
+
         let mu = if sum_neg > 1e-12 {
             1.0 - sum_pos / sum_neg
         } else {
-            -1.0 
+            -1.0
         };
-        
+
         let ax = &a_mat * &x;
         let mut z_fit_re = Vec::with_capacity(n);
         let mut z_fit_im = Vec::with_capacity(n);
@@ -389,11 +418,19 @@ pub fn lin_kk_solver(
             z_fit_re.push(ax[i]);
             z_fit_im.push(ax[i + n]);
         }
-        
+
         best_m = m;
         best_mu = mu;
-        best_res_real = z_real.iter().zip(z_fit_re.iter()).map(|(a, b)| a - b).collect();
-        best_res_imag = z_imag.iter().zip(z_fit_im.iter()).map(|(a, b)| a - b).collect();
+        best_res_real = z_real
+            .iter()
+            .zip(z_fit_re.iter())
+            .map(|(a, b)| a - b)
+            .collect();
+        best_res_imag = z_imag
+            .iter()
+            .zip(z_fit_im.iter())
+            .map(|(a, b)| a - b)
+            .collect();
         best_z_fit_re = z_fit_re;
         best_z_fit_im = z_fit_im;
 
@@ -402,5 +439,12 @@ pub fn lin_kk_solver(
         }
     }
 
-    (best_m, best_mu, best_z_fit_re, best_z_fit_im, best_res_real, best_res_imag)
+    (
+        best_m,
+        best_mu,
+        best_z_fit_re,
+        best_z_fit_im,
+        best_res_real,
+        best_res_imag,
+    )
 }

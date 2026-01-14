@@ -161,11 +161,28 @@ impl ElementType {
             ElementType::La => vec![Constraint::Positive, Constraint::Positive], // alpha usually > 0
             ElementType::Gw => vec![Constraint::Positive, Constraint::ZeroOne],
             ElementType::G => vec![Constraint::Positive, Constraint::Positive],
-            ElementType::Gs => vec![Constraint::Positive, Constraint::Positive, Constraint::Positive],
+            ElementType::Gs => vec![
+                Constraint::Positive,
+                Constraint::Positive,
+                Constraint::Positive,
+            ],
             ElementType::K => vec![Constraint::Positive, Constraint::Positive],
-            ElementType::Zarc => vec![Constraint::Positive, Constraint::Positive, Constraint::ZeroOne],
-            ElementType::TLMQ => vec![Constraint::Positive, Constraint::Positive, Constraint::ZeroOne],
-            ElementType::T => vec![Constraint::Positive, Constraint::Positive, Constraint::Positive, Constraint::Positive],
+            ElementType::Zarc => vec![
+                Constraint::Positive,
+                Constraint::Positive,
+                Constraint::ZeroOne,
+            ],
+            ElementType::TLMQ => vec![
+                Constraint::Positive,
+                Constraint::Positive,
+                Constraint::ZeroOne,
+            ],
+            ElementType::T => vec![
+                Constraint::Positive,
+                Constraint::Positive,
+                Constraint::Positive,
+                Constraint::Positive,
+            ],
         }
     }
 
@@ -347,16 +364,16 @@ impl ElementType {
                 let r_ion = p[0];
                 let qs = p[1];
                 let gamma = p[2];
-                
+
                 if omega > 1e-9 {
                     let jw_gamma = (Complex64::i() * omega).powf(gamma);
                     let z_s = 1.0 / (Complex64::new(qs, 0.0) * jw_gamma);
-                    
+
                     let r_ion_c = Complex64::new(r_ion, 0.0);
                     let sqrt_prod = (r_ion_c * z_s).sqrt();
                     let sqrt_quot = (r_ion_c / z_s).sqrt();
                     let tanh_quot = sqrt_quot.tanh();
-                    
+
                     if tanh_quot.norm_sqr() > 1e-16 {
                         sqrt_prod / tanh_quot
                     } else {
@@ -373,28 +390,28 @@ impl ElementType {
                 let b_big = p[1];
                 let a_small = p[2];
                 let b_small = p[3];
-                
+
                 let beta = (Complex64::new(a_small, 0.0) + Complex64::i() * omega * b_small).sqrt();
-                
+
                 if beta.norm_sqr() > 1e-16 {
                     let tanh_beta = beta.tanh();
                     let sinh_beta = beta.sinh();
-                    
+
                     let term1 = if tanh_beta.norm_sqr() > 1e-16 {
                         Complex64::new(a_big, 0.0) / (beta * tanh_beta)
                     } else {
                         Complex64::new(1e12, 0.0)
                     };
-                    
+
                     let term2 = if sinh_beta.norm_sqr() > 1e-16 {
                         Complex64::new(b_big, 0.0) / (beta * sinh_beta)
                     } else {
                         Complex64::new(0.0, 0.0) // Or huge?
                     };
-                    
+
                     term1 + term2
                 } else {
-                     Complex64::new(1e12, 0.0)
+                    Complex64::new(1e12, 0.0)
                 }
             }
         }

@@ -1,16 +1,15 @@
-use num_complex::Complex64;
+use crate::elements::Constraint;
+use crate::elements::ElementType;
 use nom::{
     branch::alt,
-    bytes::complete::{tag},
-    character::complete::{digit1},
-    combinator::{map},
+    bytes::complete::tag,
+    character::complete::digit1,
+    combinator::map,
     multi::separated_list1,
     sequence::{delimited, pair},
-    IResult,
-    Parser,
+    IResult, Parser,
 };
-use crate::elements::ElementType;
-use crate::elements::Constraint;
+use num_complex::Complex64;
 
 /// Trait for calculating impedance.
 pub trait Impedance {
@@ -28,7 +27,7 @@ pub trait Impedance {
 pub enum CircuitNode {
     /// A single electrochemical element (e.g., R, C, CPE).
     /// (Type, Global Param Index, Label Suffix)
-    Element(ElementType, usize, String), 
+    Element(ElementType, usize, String),
     /// Elements connected in series (Z_total = Z1 + Z2 + ...).
     Series(Vec<CircuitNode>),
     /// Elements connected in parallel (1/Z_total = 1/Z1 + 1/Z2 + ...).
@@ -78,9 +77,11 @@ impl CircuitNode {
             CircuitNode::Series(nodes) | CircuitNode::Parallel(nodes) => {
                 nodes.iter().flat_map(|n| n.get_param_names()).collect()
             }
-            CircuitNode::Element(etype, _idx, label) => {
-                etype.param_names().iter().map(|&s| format!("{}_{}", s, label)).collect()
-            }
+            CircuitNode::Element(etype, _idx, label) => etype
+                .param_names()
+                .iter()
+                .map(|&s| format!("{}_{}", s, label))
+                .collect(),
         }
     }
 
@@ -110,19 +111,23 @@ impl CircuitNode {
                 }
                 el.calculate(omega, &element_params)
             }
-            CircuitNode::Series(nodes) => {
-                nodes.iter()
-                    .map(|n| n.eval(omega, params))
-                    .fold(Complex64::new(0.0, 0.0), |acc, z| acc + z)
-            }
+            CircuitNode::Series(nodes) => nodes
+                .iter()
+                .map(|n| n.eval(omega, params))
+                .fold(Complex64::new(0.0, 0.0), |acc, z| acc + z),
             CircuitNode::Parallel(nodes) => {
-                let admittance_sum = nodes.iter()
+                let admittance_sum = nodes
+                    .iter()
                     .map(|n| {
                         let z = n.eval(omega, params);
-                        if z.norm_sqr() > 1e-18 { 1.0 / z } else { Complex64::new(1e12, 0.0) } // Avoid div by zero
+                        if z.norm_sqr() > 1e-18 {
+                            1.0 / z
+                        } else {
+                            Complex64::new(1e12, 0.0)
+                        } // Avoid div by zero
                     })
                     .fold(Complex64::new(0.0, 0.0), |acc, y| acc + y);
-                
+
                 if admittance_sum.norm_sqr() > 1e-18 {
                     1.0 / admittance_sum
                 } else {
@@ -165,25 +170,24 @@ fn parse_element_type(input: &str) -> IResult<&str, ElementType> {
         map(tag("C"), |_| ElementType::C),
         map(tag("L"), |_| ElementType::L),
         map(tag("W"), |_| ElementType::W),
-    )).parse(input)
+    ))
+    .parse(input)
 }
 
 fn parse_element(input: &str) -> IResult<&str, CircuitNode> {
     map(
         pair(parse_element_type, digit1),
         |(etype, idx_str)| CircuitNode::Element(etype, 0, idx_str.to_string()), // Index assigned later, label stored
-    ).parse(input)
+    )
+    .parse(input)
 }
 
 fn parse_parallel(input: &str) -> IResult<&str, CircuitNode> {
     map(
-        delimited(
-            tag("p("),
-            separated_list1(tag(","), parse_node),
-            tag(")"),
-        ),
+        delimited(tag("p("), separated_list1(tag(","), parse_node), tag(")")),
         CircuitNode::Parallel,
-    ).parse(input)
+    )
+    .parse(input)
 }
 
 fn parse_atom(input: &str) -> IResult<&str, CircuitNode> {
@@ -191,16 +195,14 @@ fn parse_atom(input: &str) -> IResult<&str, CircuitNode> {
 }
 
 fn parse_node(input: &str) -> IResult<&str, CircuitNode> {
-    map(
-        separated_list1(tag("-"), parse_atom),
-        |nodes| {
-            if nodes.len() == 1 {
-                nodes[0].clone()
-            } else {
-                CircuitNode::Series(nodes)
-            }
-        },
-    ).parse(input)
+    map(separated_list1(tag("-"), parse_atom), |nodes| {
+        if nodes.len() == 1 {
+            nodes[0].clone()
+        } else {
+            CircuitNode::Series(nodes)
+        }
+    })
+    .parse(input)
 }
 
 /// Parses a circuit string (e.g., "R0-p(C1,R2)") into a CircuitNode AST.

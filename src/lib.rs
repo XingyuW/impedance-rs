@@ -1,14 +1,16 @@
-use pyo3::prelude::*;
-use nalgebra::DVector;
 use levenberg_marquardt::LevenbergMarquardt;
+use nalgebra::DVector;
+use pyo3::prelude::*;
 use std::f64::consts::PI;
 
-mod elements;
 mod circuits;
+mod elements;
 mod fitting;
 
 use circuits::{parse_circuit_string, Impedance};
-use fitting::{guess_parameters, ImpedanceFitter, lin_kk_solver, transform_forward, transform_backward};
+use fitting::{
+    guess_parameters, lin_kk_solver, transform_backward, transform_forward, ImpedanceFitter,
+};
 
 #[pyfunction]
 fn fit_circuit(
@@ -17,17 +19,28 @@ fn fit_circuit(
     z_real: Vec<f64>,
     z_imag: Vec<f64>,
     phase_deg: Vec<f64>,
-) -> PyResult<(Vec<f64>, Vec<String>, Vec<String>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>)> {
+) -> PyResult<(
+    Vec<f64>,
+    Vec<String>,
+    Vec<String>,
+    Vec<f64>,
+    Vec<f64>,
+    Vec<f64>,
+    Vec<f64>,
+)> {
     // 1. Parse
     let circuit = parse_circuit_string(&circuit_str)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
 
     // 2. Guess
-    let initial_params_physical = guess_parameters(&circuit, &frequencies, &z_real, &z_imag, &phase_deg);
+    let initial_params_physical =
+        guess_parameters(&circuit, &frequencies, &z_real, &z_imag, &phase_deg);
     let constraints = circuit.get_constraints();
 
     // Transform to internal parameters
-    let initial_params_internal: Vec<f64> = initial_params_physical.iter().zip(constraints.iter())
+    let initial_params_internal: Vec<f64> = initial_params_physical
+        .iter()
+        .zip(constraints.iter())
         .map(|(&p, &c)| transform_forward(p, c))
         .collect();
 
@@ -42,11 +55,13 @@ fn fit_circuit(
     };
 
     let (result, _report) = LevenbergMarquardt::new().minimize(fitter);
-    
+
     let fitted_params_internal = result.params.as_slice();
-    
+
     // Transform back to physical parameters
-    let fitted_params_physical: Vec<f64> = fitted_params_internal.iter().zip(constraints.iter())
+    let fitted_params_physical: Vec<f64> = fitted_params_internal
+        .iter()
+        .zip(constraints.iter())
         .map(|(&p, &c)| transform_backward(p, c))
         .collect();
 
@@ -63,7 +78,7 @@ fn fit_circuit(
     for &f in &frequencies {
         let omega = 2.0 * PI * f;
         let z = circuit.calculate(omega, &fitted_params_physical);
-        
+
         fitted_real.push(z.re);
         fitted_imag.push(z.im);
         fitted_mag.push(z.norm());
@@ -82,7 +97,11 @@ fn fit_circuit(
 }
 
 #[pyfunction]
-fn ignore_below_x(frequencies: Vec<f64>, z_real: Vec<f64>, z_imag: Vec<f64>) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+fn ignore_below_x(
+    frequencies: Vec<f64>,
+    z_real: Vec<f64>,
+    z_imag: Vec<f64>,
+) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
     let mut f_out = Vec::new();
     let mut z_real_out = Vec::new();
     let mut z_imag_out = Vec::new();
